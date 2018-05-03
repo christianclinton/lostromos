@@ -14,7 +14,10 @@
 
 package tmpl
 
-import "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+import (
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"fmt"
+)
 
 // CustomResource provides some helper methods for interacting with the
 // kubernetes custom resource inside the templates.
@@ -44,6 +47,9 @@ func getNestedField(obj map[string]interface{}, fields ...string) interface{} {
 			return nil
 		}
 		val = val.(map[string]interface{})[field]
+		if _, ok := val.(int64); ok {
+			val = fmt.Sprint(val)
+		}
 	}
 	return val
 }

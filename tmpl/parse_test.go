@@ -38,6 +38,7 @@ var (
 				"Name": "Dory",
 				"From": "Finding Nemo",
 				"By":   "Disney",
+				"Likes": int64(32),
 			},
 		},
 	}

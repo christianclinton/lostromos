@@ -30,6 +30,11 @@ func TestGetField(t *testing.T) {
 	assert.Equal(t, "dory", r)
 }
 
+func TestGetNumericField(t *testing.T) {
+	r := testCR.GetField("spec", "Likes")
+	assert.Equal(t, "32", r)
+}
+
 func TestGetFieldReturnsEmptyIfNotFound(t *testing.T) {
 	r := testCR.GetField("Something", "made", "up")
 	assert.Empty(t, r)
