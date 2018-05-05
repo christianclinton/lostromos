@@ -122,6 +122,7 @@ func (c Controller) delete(r *unstructured.Unstructured) (output string, err err
 	}
 	c.Resources.DeleteResource(cr)
 	if c.Resources.Count() > 0 {
+		// FIXME: This will miss resources with a 1:1 CRD:Resource mapping
 		return c.apply(nil)
 	} else {
 		return c.Client.Delete(tmpFile.Name())
