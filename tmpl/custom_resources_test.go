@@ -12,20 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tmpl
+package tmpl_test
 
 import (
-	"io"
-	"text/template"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/wpengine/lostromos/tmpl"
 )
 
-// Parse will take a CustomResource, template directory and an io.Writer and
-// print the resulting templates to the io.Writer
-func Parse(crs *CustomResources, dir string, w io.Writer) error {
-	tmpl, err := template.ParseGlob(dir)
-	if err != nil {
-		return err
-	}
-
-	return tmpl.Execute(w, crs)
+func TestAddResource(t *testing.T) {
+	crs := tmpl.NewCustomResources()
+	crs.AddResource(testCR)
+	assert.Equal(t, "dory", crs.Name())
 }

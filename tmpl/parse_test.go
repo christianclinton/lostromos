@@ -86,8 +86,10 @@ func TestParse(t *testing.T) {
 	// Clean up after the test; another quirk of running as an example.
 	defer os.RemoveAll(dir)
 
+	testCRs := tmpl.NewCustomResources()
+	testCRs.AddResource(testCR)
 	buf := bytes.NewBufferString("")
-	err := tmpl.Parse(testCR, filepath.Join(dir, "*.tmpl"), buf)
+	err := tmpl.Parse(testCRs, filepath.Join(dir, "*.tmpl"), buf)
 	assert.Nil(t, err)
 	assert.NotNil(t, buf.String())
 	assert.Equal(t, "--- name: dory-configmap", buf.String())
@@ -97,7 +99,9 @@ func TestGenerateTemplateNoTemplatePath(t *testing.T) {
 	buf := bytes.NewBufferString("")
 	assert.Empty(t, buf.String(), "Buffer is new, it should be empty")
 
-	err := tmpl.Parse(testCR, "", buf)
+	testCRs := tmpl.NewCustomResources()
+	testCRs.AddResource(testCR)
+	err := tmpl.Parse(testCRs, "", buf)
 
 	assert.NotNil(t, err)
 	assert.Empty(t, buf.String(), "If an error occurs nothing should be written")

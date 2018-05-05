@@ -84,5 +84,7 @@ func check(out io.Writer) error {
 		return err
 	}
 	cr := &tmpl.CustomResource{Resource: &r}
-	return tmpl.Parse(cr, filepath.Join(tmplDir, "*.tmpl"), out)
+	crs := tmpl.NewCustomResources()
+	crs.AddResource(cr)
+	return tmpl.Parse(crs, filepath.Join(tmplDir, "*.tmpl"), out)
 }

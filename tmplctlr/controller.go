@@ -32,6 +32,7 @@ type Controller struct {
 	templatePath string     //path to dir where templates are located
 	Client       KubeClient //client for talking with kubernetes
 	logger       *zap.SugaredLogger
+	Resources    *tmpl.CustomResources
 }
 
 // NewController will return a configured Controller
@@ -40,10 +41,12 @@ func NewController(tmplDir string, kubeCfg string, logger *zap.SugaredLogger) *C
 		// If you don't give us a logger, set logger to a nop logger
 		logger = zap.NewNop().Sugar()
 	}
+	resources := tmpl.NewCustomResources()
 	c := &Controller{
 		Client:       &Kubectl{ConfigFile: kubeCfg},
 		templatePath: filepath.Join(tmplDir, "*.tmpl"),
 		logger:       logger,
+		Resources:    resources,
 	}
 	return c
 }
@@ -96,6 +99,10 @@ func (c Controller) ResourceDeleted(r *unstructured.Unstructured) {
 }
 
 func (c Controller) apply(r *unstructured.Unstructured) (output string, err error) {
+	cr := &tmpl.CustomResource{
+		Resource: r,
+	}
+	c.Resources.AddResource(cr)
 	tmpFile, err := c.buildTemplate(r)
 	if err != nil {
 		return "", err
@@ -108,17 +115,18 @@ func (c Controller) delete(r *unstructured.Unstructured) (output string, err err
 	if err != nil {
 		return "", err
 	}
+	cr := &tmpl.CustomResource{
+		Resource: r,
+	}
+	c.Resources.DeleteResource(cr)
 	return c.Client.Delete(tmpFile.Name())
 }
 
 func (c Controller) buildTemplate(r *unstructured.Unstructured) (tmpFile *os.File, err error) {
-	cr := &tmpl.CustomResource{
-		Resource: r,
-	}
 	tmpFile, err = ioutil.TempFile("", "lostromos")
 	if err != nil {
 		return tmpFile, err
 	}
-	err = tmpl.Parse(cr, c.templatePath, tmpFile)
+	err = tmpl.Parse(c.Resources, c.templatePath, tmpFile)
 	return tmpFile, err
 }

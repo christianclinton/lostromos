@@ -35,8 +35,11 @@ import (
 var (
 	testResource = &unstructured.Unstructured{
 		Object: map[string]interface{}{
+			"apiVersion": "stable.nicolerenee.io/v1",
+			"kind": "Character",
 			"metadata": map[string]interface{}{
 				"name": "dory",
+				"selfLink": "/api/stable.nicolerenee.io/v1/namespaces/mock/characters/dory",
 			},
 			"spec": map[string]interface{}{
 				"Name": "Dory",
@@ -249,6 +252,7 @@ func TestResourceDeletedHappyPath(t *testing.T) {
 	// Clean up after the test; another quirk of running as an example.
 	defer os.RemoveAll(dir)
 	c := tmplctlr.NewController(dir, "", nil)
+	c.ResourceAdded(testResource);
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	mockKube := NewMockKubeClient(mockCtrl)
@@ -272,6 +276,7 @@ func TestResourceDeletedApplyFails(t *testing.T) {
 	// Clean up after the test; another quirk of running as an example.
 	defer os.RemoveAll(dir)
 	c := tmplctlr.NewController(dir, "", nil)
+	c.ResourceAdded(testResource);
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	mockKube := NewMockKubeClient(mockCtrl)
