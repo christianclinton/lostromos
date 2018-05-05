@@ -42,6 +42,10 @@ func (crs *CustomResources) AddResource(cr *CustomResource) {
 func (crs *CustomResources) DeleteResource(cr *CustomResource) {
 	crKind := cr.Resource.GetAPIVersion() + "/" + cr.Resource.GetKind()
 	if _, ok := crs.Resources[crKind]; ok {
+		oldResource := crs.Resources[crKind][cr.Resource.GetSelfLink()]
+		if &crs.lastResource == &oldResource {
+			crs.lastResource = nil
+		}
 		delete(crs.Resources[crKind], cr.Resource.GetSelfLink())
 	}
 }
@@ -60,9 +64,16 @@ func (crs *CustomResources) GetResources(kind string, apiVersion string) []*Cust
 
 // Emulate legacy behavior if only one CustomResource
 func (crs *CustomResources) Name() string {
-	return crs.lastResource.Name()
+	if crs.lastResource != nil {
+		return crs.lastResource.Name()
+	}
+	return ""
 }
 
+
 func (crs *CustomResources) GetField(fields ...string) string {
-	return crs.lastResource.GetField(fields...)
+	if crs.lastResource != nil {
+		return crs.lastResource.GetField(fields...)
+	}
+	return ""
 }
