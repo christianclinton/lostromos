@@ -31,8 +31,11 @@ import (
 var (
 	testResource = &unstructured.Unstructured{
 		Object: map[string]interface{}{
+			"apiVersion": "stable.nicolerenee.io/v1",
+			"kind": "Character",
 			"metadata": map[string]interface{}{
 				"name": "dory",
+				"selfLink": "/api/stable.nicolerenee.io/v1/namespaces/mock/characters/dory",
 			},
 			"spec": map[string]interface{}{
 				"Name": "Dory",

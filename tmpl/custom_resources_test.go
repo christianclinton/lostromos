@@ -26,3 +26,16 @@ func TestAddResource(t *testing.T) {
 	crs.AddResource(testCR)
 	assert.Equal(t, "dory", crs.Name())
 }
+
+func TestDeleteResource(t *testing.T) {
+	crs := tmpl.NewCustomResources()
+	crs.DeleteResource(testCR)
+	assert.Equal(t, "", crs.Name())
+}
+
+func TestGetResources(t *testing.T) {
+	crs := tmpl.NewCustomResources()
+	crs.AddResource(testCR)
+	resources := crs.GetResources(testCR.Resource.GetKind(), testCR.Resource.GetAPIVersion())
+	assert.Equal(t, "dory", resources[0].Name())
+}
