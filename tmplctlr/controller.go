@@ -99,11 +99,13 @@ func (c Controller) ResourceDeleted(r *unstructured.Unstructured) {
 }
 
 func (c Controller) apply(r *unstructured.Unstructured) (output string, err error) {
-	cr := &tmpl.CustomResource{
-		Resource: r,
+	if r != nil {
+		cr := &tmpl.CustomResource{
+			Resource: r,
+		}
+		c.Resources.AddResource(cr)
 	}
-	c.Resources.AddResource(cr)
-	tmpFile, err := c.buildTemplate(r)
+	tmpFile, err := c.buildTemplate()
 	if err != nil {
 		return "", err
 	}
@@ -111,7 +113,7 @@ func (c Controller) apply(r *unstructured.Unstructured) (output string, err erro
 }
 
 func (c Controller) delete(r *unstructured.Unstructured) (output string, err error) {
-	tmpFile, err := c.buildTemplate(r)
+	tmpFile, err := c.buildTemplate()
 	if err != nil {
 		return "", err
 	}
@@ -119,10 +121,14 @@ func (c Controller) delete(r *unstructured.Unstructured) (output string, err err
 		Resource: r,
 	}
 	c.Resources.DeleteResource(cr)
-	return c.Client.Delete(tmpFile.Name())
+	if c.Resources.Count() > 0 {
+		return c.apply(nil)
+	} else {
+		return c.Client.Delete(tmpFile.Name())
+	}
 }
 
-func (c Controller) buildTemplate(r *unstructured.Unstructured) (tmpFile *os.File, err error) {
+func (c Controller) buildTemplate() (tmpFile *os.File, err error) {
 	tmpFile, err = ioutil.TempFile("", "lostromos")
 	if err != nil {
 		return tmpFile, err

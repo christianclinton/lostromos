@@ -77,3 +77,11 @@ func (crs *CustomResources) GetField(fields ...string) string {
 	}
 	return ""
 }
+
+func (crs *CustomResources) Count() int {
+	count := 0
+	for _, v := range crs.Resources {
+		count += len(v)
+	}
+	return count
+}
