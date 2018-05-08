@@ -55,7 +55,7 @@ func NewController(tmplDir string, kubeCfg string, logger *zap.SugaredLogger) *C
 	return c
 }
 
-func (c *Controller) SetSynced(){
+func (c *Controller) NotifySynced(){
 	c.synced = true
 	// Trigger a template build since we're synced now
 	out, err := c.apply(nil)

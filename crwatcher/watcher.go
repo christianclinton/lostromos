@@ -69,7 +69,7 @@ type ResourceController interface {
 	ResourceAdded(resource *unstructured.Unstructured)
 	ResourceUpdated(oldResource, newResource *unstructured.Unstructured)
 	ResourceDeleted(resource *unstructured.Unstructured)
-	SetSynced()
+	NotifySynced()
 }
 
 // ErrorLogger will receive any error messages from the kubernetes client
@@ -208,7 +208,7 @@ func (cw *CRWatcher) Watch(stopCh <-chan struct{}) error {
 	// starts after this.
 	go func(){
 		cache.WaitForCacheSync(stopCh, cw.controller.HasSynced)
-		cw.resourceController.SetSynced()
+		cw.resourceController.NotifySynced()
 	}()
 
 	cw.controller.Run(stopCh)

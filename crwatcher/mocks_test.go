@@ -64,6 +64,6 @@ func (_mr *MockResourceControllerMockRecorder) ResourceDeleted(arg0 interface{})
 }
 
 // ResourceDeleted mocks base method
-func (_m *MockResourceController) SetSynced() {
+func (_m *MockResourceController) NotifySynced() {
 	_m.ctrl.Call(_m, "SetSynced")
 }

@@ -41,7 +41,7 @@ type Controller struct {
 	synced      bool
 }
 
-func (c *Controller) SetSynced(){
+func (c *Controller) NotifySynced(){
 	c.synced = true
 }
 

@@ -57,7 +57,7 @@ func (c Controller) ResourceDeleted(r *unstructured.Unstructured) {
 	metrics.LastSuccessfulDelete.Set(float64(time.Now().UTC().UnixNano()) / 1000000000)
 }
 
-func (c Controller) SetSynced() {
+func (c Controller) NotifySynced() {
 	// noop
 	return
 }
