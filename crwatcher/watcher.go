@@ -47,6 +47,7 @@ type CRWatcher struct {
 	store      cache.Store
 	controller cache.Controller
 	logger     ErrorLogger
+	resourceController ResourceController
 }
 
 // ResourceController exposes the functionality of a controller that
@@ -68,6 +69,7 @@ type ResourceController interface {
 	ResourceAdded(resource *unstructured.Unstructured)
 	ResourceUpdated(oldResource, newResource *unstructured.Unstructured)
 	ResourceDeleted(resource *unstructured.Unstructured)
+	SetSynced()
 }
 
 // ErrorLogger will receive any error messages from the kubernetes client
@@ -80,6 +82,7 @@ func NewCRWatcher(cfg *Config, kubeCfg *restclient.Config, rc ResourceController
 	cw := &CRWatcher{
 		Config: cfg,
 		logger: l,
+		resourceController: rc,
 	}
 
 	kubeCfg.ContentConfig.GroupVersion = &schema.GroupVersion{
@@ -94,7 +97,7 @@ func NewCRWatcher(cfg *Config, kubeCfg *restclient.Config, rc ResourceController
 	dc := dynClient
 	cw.setupResource(dc)
 	cw.setupHandler(rc)
-	cw.setupController()
+	cw.setupController(rc)
 	cw.setupRuntimeLogging()
 	return cw, nil
 }
@@ -161,7 +164,7 @@ func (cw *CRWatcher) setupResource(dc *dynamic.Client) {
 	cw.resource = dc.Resource(apiResource, cw.Config.Namespace)
 }
 
-func (cw *CRWatcher) setupController() {
+func (cw *CRWatcher) setupController(rc ResourceController) {
 	listFunc := func(opts metav1.ListOptions) (runtime.Object, error) {
 		return cw.resource.List(opts)
 	}
@@ -199,6 +202,16 @@ func (cw *CRWatcher) Watch(stopCh <-chan struct{}) error {
 	if cw.controller == nil {
 		return errors.New("the CRWatcher has not been initialized")
 	}
+
+	// Kick off wait for cache sync.
+	// This will return a few moments after the Informer Run() loop
+	// starts after this.
+	go func(){
+		cache.WaitForCacheSync(stopCh, cw.controller.HasSynced)
+		cw.resourceController.SetSynced()
+	}()
+
 	cw.controller.Run(stopCh)
+
 	return nil
 }

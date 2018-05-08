@@ -38,6 +38,11 @@ type Controller struct {
 	Wait        bool           // Whether or not to wait for resources during Update and Install before marking a release successful
 	WaitTimeout int64          // time in seconds to wait for kubernetes resources to be created before marking a release successful
 	logger      *zap.SugaredLogger
+	synced      bool
+}
+
+func (c *Controller) SetSynced(){
+	c.synced = true
 }
 
 // NewController will return a configured Helm Controller

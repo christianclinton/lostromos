@@ -62,3 +62,8 @@ func (_m *MockResourceController) ResourceDeleted(resource *unstructured.Unstruc
 func (_mr *MockResourceControllerMockRecorder) ResourceDeleted(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "ResourceDeleted", reflect.TypeOf((*MockResourceController)(nil).ResourceDeleted), arg0)
 }
+
+// ResourceDeleted mocks base method
+func (_m *MockResourceController) SetSynced() {
+	_m.ctrl.Call(_m, "SetSynced")
+}

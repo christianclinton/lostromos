@@ -33,6 +33,7 @@ type Controller struct {
 	Client       KubeClient //client for talking with kubernetes
 	logger       *zap.SugaredLogger
 	Resources    *tmpl.CustomResources
+	synced       bool
 }
 
 // NewController will return a configured Controller
@@ -47,8 +48,20 @@ func NewController(tmplDir string, kubeCfg string, logger *zap.SugaredLogger) *C
 		templatePath: filepath.Join(tmplDir, "*.tmpl"),
 		logger:       logger,
 		Resources:    resources,
+		synced:       false,
 	}
 	return c
+}
+
+func (c *Controller) SetSynced(){
+	c.synced = true
+	// Trigger a template build since we're synced now
+	out, err := c.apply(nil)
+	if err != nil {
+		c.logger.Errorw("failed to build template after sync", "error", err, "cmdOutput", out)
+		metrics.DeleteFailures.Inc()
+		return
+	}
 }
 
 // ResourceAdded is called when a custom resource is created and will generate
@@ -104,6 +117,10 @@ func (c Controller) apply(r *unstructured.Unstructured) (output string, err erro
 			Resource: r,
 		}
 		c.Resources.AddResource(cr)
+	}
+	if !c.synced {
+		c.logger.Infow("Skipping template build. Controller still syncing.")
+		return "", nil
 	}
 	tmpFile, err := c.buildTemplate()
 	if err != nil {
