@@ -38,7 +38,7 @@ type Controller struct {
 }
 
 // NewController will return a configured Controller
-func NewController(tmplDir string, kubeCfg string, logger *zap.SugaredLogger) *Controller {
+func NewController(tmplDir string, kubeCfg string, logger *zap.SugaredLogger, batchMode bool) *Controller {
 	if logger == nil {
 		// If you don't give us a logger, set logger to a nop logger
 		logger = zap.NewNop().Sugar()
@@ -50,7 +50,7 @@ func NewController(tmplDir string, kubeCfg string, logger *zap.SugaredLogger) *C
 		logger:       logger,
 		Resources:    resources,
 		synced:       false,
-		batchMode:    false,
+		batchMode:    batchMode,
 	}
 	return c
 }
@@ -118,7 +118,7 @@ func (c Controller) apply(r *unstructured.Unstructured) (output string, err erro
 		cr := &tmpl.CustomResource{
 			Resource: r,
 		}
-		if c.batchMode {
+		if !c.batchMode {
 			c.Resources.PurgeResources()
 		}
 		c.Resources.AddResource(cr)

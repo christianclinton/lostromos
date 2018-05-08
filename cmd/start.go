@@ -150,7 +150,8 @@ func getController() crwatcher.ResourceController {
 	}
 	logger = logger.With("controller", "template")
 	logger.Infow("using template controller for deployment", "templateDir", viper.GetString("templates"))
-	return tmplctlr.NewController(viper.GetString("templates"), viper.GetString("k8s.config"), logger)
+	viper.SetDefault("batchMode", false)
+	return tmplctlr.NewController(viper.GetString("templates"), viper.GetString("k8s.config"), logger, viper.GetBool("batchMode"))
 }
 
 type crLogger struct {
