@@ -62,6 +62,11 @@ func (crs *CustomResources) GetResources(kind string, apiVersion string) []*Cust
 	return resources
 }
 
+// Forget all CRDs the template knows about
+func (crs *CustomResources) PurgeResources() {
+	crs.Resources = make(map[string]map[string]*CustomResource)
+}
+
 // Emulate legacy behavior if only one CustomResource
 func (crs *CustomResources) Name() string {
 	if crs.lastResource != nil {

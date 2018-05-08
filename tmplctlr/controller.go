@@ -34,6 +34,7 @@ type Controller struct {
 	logger       *zap.SugaredLogger
 	Resources    *tmpl.CustomResources
 	synced       bool
+	batchMode    bool
 }
 
 // NewController will return a configured Controller
@@ -49,6 +50,7 @@ func NewController(tmplDir string, kubeCfg string, logger *zap.SugaredLogger) *C
 		logger:       logger,
 		Resources:    resources,
 		synced:       false,
+		batchMode:    false,
 	}
 	return c
 }
@@ -116,9 +118,12 @@ func (c Controller) apply(r *unstructured.Unstructured) (output string, err erro
 		cr := &tmpl.CustomResource{
 			Resource: r,
 		}
+		if c.batchMode {
+			c.Resources.PurgeResources()
+		}
 		c.Resources.AddResource(cr)
 	}
-	if !c.synced {
+	if c.batchMode && !c.synced {
 		c.logger.Infow("Skipping template build. Controller still syncing.")
 		return "", nil
 	}

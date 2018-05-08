@@ -189,7 +189,6 @@ func TestResourceAddedHappyPath(t *testing.T) {
 	// Clean up after the test; another quirk of running as an example.
 	defer os.RemoveAll(dir)
 	c := tmplctlr.NewController(dir, "", nil)
-	c.SetSynced()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	mockKube := NewMockKubeClient(mockCtrl)
@@ -213,7 +212,6 @@ func TestResourceAddedApplyFails(t *testing.T) {
 	// Clean up after the test; another quirk of running as an example.
 	defer os.RemoveAll(dir)
 	c := tmplctlr.NewController(dir, "", nil)
-	c.SetSynced()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	mockKube := NewMockKubeClient(mockCtrl)
@@ -235,7 +233,6 @@ func TestResourceAddedTemplatingFails(t *testing.T) {
 	// Clean up after the test; another quirk of running as an example.
 	defer os.RemoveAll(dir)
 	c := tmplctlr.NewController(dir, "", nil)
-	c.SetSynced()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	mockKube := NewMockKubeClient(mockCtrl)
@@ -255,7 +252,6 @@ func TestResourceDeletedHappyPath(t *testing.T) {
 	// Clean up after the test; another quirk of running as an example.
 	defer os.RemoveAll(dir)
 	c := tmplctlr.NewController(dir, "", nil)
-	c.SetSynced()
 	c.ResourceAdded(testResource);
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -280,7 +276,6 @@ func TestResourceDeletedApplyFails(t *testing.T) {
 	// Clean up after the test; another quirk of running as an example.
 	defer os.RemoveAll(dir)
 	c := tmplctlr.NewController(dir, "", nil)
-	c.SetSynced()
 	c.ResourceAdded(testResource);
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -303,7 +298,6 @@ func TestResourceDeletedTemplatingFails(t *testing.T) {
 	// Clean up after the test; another quirk of running as an example.
 	defer os.RemoveAll(dir)
 	c := tmplctlr.NewController(dir, "", nil)
-	c.SetSynced()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	mockKube := NewMockKubeClient(mockCtrl)
@@ -323,7 +317,6 @@ func TestResourceUpdatedHappyPath(t *testing.T) {
 	// Clean up after the test; another quirk of running as an example.
 	defer os.RemoveAll(dir)
 	c := tmplctlr.NewController(dir, "", nil)
-	c.SetSynced()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	mockKube := NewMockKubeClient(mockCtrl)
@@ -346,7 +339,6 @@ func TestResourceUpdatedApplyFails(t *testing.T) {
 	// Clean up after the test; another quirk of running as an example.
 	defer os.RemoveAll(dir)
 	c := tmplctlr.NewController(dir, "", nil)
-	c.SetSynced()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	mockKube := NewMockKubeClient(mockCtrl)
