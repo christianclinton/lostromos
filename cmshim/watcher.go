@@ -20,7 +20,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/dynamic"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/informers"
@@ -32,10 +31,6 @@ import (
 
 // Config provides config for a CRD Watcher
 type Config struct {
-	Group      string        // API Group of the CRD
-	Namespace  string        // namespace of the CRD
-	Version    string        // version of the CRD
-	PluralName string        // plural name of the CRD
 	Filter     string        // Optional disregard resources that don't have an annotation key matching this filter
 	Resync     time.Duration // How often existing CRs should be resynced (marked as updated)
 }
@@ -43,9 +38,7 @@ type Config struct {
 // Watches ConfigMaps with a CRD payload.
 type CMShim struct {
 	Config     *Config
-	resource   dynamic.ResourceInterface
 	handler    cache.ResourceEventHandlerFuncs
-	store      cache.Store
 	controller cache.SharedIndexInformer
 	logger     ErrorLogger
 	resourceController ResourceController
@@ -95,6 +88,27 @@ func NewCMShim(cfg *Config, kubeCfg *restclient.Config, rc ResourceController, l
 	cw.setupRuntimeLogging()
 	return cw, nil
 }
+// Takes a ConfigMap with a `crd` Data field containing a CRD YAML payload
+func ConfigMapToCRD(cm *v1.ConfigMap) (*unstructured.Unstructured, error) {
+	crdUnstructured := &unstructured.Unstructured{}
+
+	if _, ok := cm.Data["crd"]; !ok {
+		return nil, errors.New("Missing `crd` field in `Data` of ConfigMap")
+	}
+
+	crdYAML := []byte(cm.Data["crd"])
+
+	crdJSON, err := yaml2.ToJSON(crdYAML)
+	if err != nil {
+		return nil, err
+	}
+
+	err = crdUnstructured.UnmarshalJSON(crdJSON)
+	if err != nil {
+		return nil, err
+	}
+	return crdUnstructured, nil
+}
 
 func (cw *CMShim) setupRuntimeLogging() {
 	if cw.logger != nil {
@@ -112,37 +126,41 @@ func (cw *CMShim) setupHandler(con ResourceController) {
 	cw.handler = cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			r := obj.(*v1.ConfigMap)
-			unstruc := &unstructured.Unstructured{}
-
-			data := []byte(r.Data["crd"])
-
-
-			json, err := yaml2.ToJSON(data)
+			crd, err := ConfigMapToCRD(r)
 			if err != nil {
-				fmt.Println(err)
+				cw.logKubeError(err)
+				return
 			}
-
-			err = unstruc.UnmarshalJSON(json)
-			if err != nil {
-				fmt.Println(err)
-			}
-
-
-			fmt.Println(unstruc)
-			if cw.passesFiltering(unstruc) {
-				con.ResourceAdded(unstruc)
+			fmt.Println(crd)
+			if cw.passesFiltering(crd) {
+				con.ResourceAdded(crd)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			r := obj.(*unstructured.Unstructured)
-			if cw.passesFiltering(r) {
-				con.ResourceDeleted(r)
+			r := obj.(*v1.ConfigMap)
+			crd, err := ConfigMapToCRD(r)
+			if err != nil {
+				cw.logKubeError(err)
+				return
+			}
+			if cw.passesFiltering(crd) {
+				con.ResourceDeleted(crd)
 			}
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			oldR := oldObj.(*unstructured.Unstructured)
-			newR := newObj.(*unstructured.Unstructured)
-			cw.update(con, oldR, newR)
+			oldR := oldObj.(*v1.ConfigMap)
+			newR := newObj.(*v1.ConfigMap)
+			oldCRD, err := ConfigMapToCRD(oldR)
+			if err != nil {
+				cw.logKubeError(err)
+				return
+			}
+			newCRD, err := ConfigMapToCRD(newR)
+			if err != nil {
+				cw.logKubeError(err)
+				return
+			}
+			cw.update(con, oldCRD, newCRD)
 		},
 	}
 }
