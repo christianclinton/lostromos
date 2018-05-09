@@ -62,8 +62,13 @@ func NewCMShim(cfg *Config, kubeCfg *restclient.Config, rc crwatcher.ResourceCon
 	}
 
 	client := kubernetes.NewForConfigOrDie(kubeCfg)
-	sharedInformers := informers.NewSharedInformerFactory(client, cw.Config.Resync)
-	cw.controller = sharedInformers.Core().V1().ConfigMaps().Informer()
+	if cfg.AllNamespaces == true {
+		sharedInformers := informers.NewSharedInformerFactory(client, cw.Config.Resync)
+		cw.controller = sharedInformers.Core().V1().ConfigMaps().Informer()
+	} else {
+		scopedInformer := informers.NewFilteredSharedInformerFactory(client, cfg.Resync, cfg.Namespace, nil)
+		cw.controller = scopedInformer.Core().V1().ConfigMaps().Informer()
+	}
 
 	cw.setupHandler(rc)
 	cw.controller.AddEventHandler(cw.handler)
