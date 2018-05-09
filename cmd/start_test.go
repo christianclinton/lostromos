@@ -107,6 +107,31 @@ func TestValidateOptions(t *testing.T) {
 	var testCases = []struct {
 		name       string
 		crName     string
+		cmType    string
+		successful bool
+	}{
+		{"Test fails with both cr-name and cm-type", "test", "test", false},
+		{"Test fails with neither cr-name nor cm-type", "", "", false},
+	}
+
+	for _, tt := range testCases {
+		viper.Reset()
+		viper.Set("crd.name", tt.crName)
+		viper.Set("cm.type", tt.cmType)
+
+		err := validateOptions()
+		if tt.successful {
+			assert.Nil(t, err, fmt.Sprintf("Test: %s, should not return an error. Error: %s", tt.name, err))
+		} else {
+			assert.NotNil(t, err, fmt.Sprintf("Test: %s, should return an error", tt.name))
+		}
+	}
+}
+
+func TestValidateCRDOptions(t *testing.T) {
+	var testCases = []struct {
+		name       string
+		crName     string
 		crGroup    string
 		crVersion  string
 		crNS       string
@@ -120,10 +145,39 @@ func TestValidateOptions(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
+		viper.Reset()
 		viper.Set("crd.name", tt.crName)
 		viper.Set("crd.group", tt.crGroup)
 		viper.Set("crd.version", tt.crVersion)
 		viper.Set("crd.namespace", tt.crNS)
+
+		err := validateOptions()
+		if tt.successful {
+			assert.Nil(t, err, fmt.Sprintf("Test: %s, should not return an error. Error: %s", tt.name, err))
+		} else {
+			assert.NotNil(t, err, fmt.Sprintf("Test: %s, should return an error", tt.name))
+		}
+	}
+}
+
+func TestValidateCMOptions(t *testing.T) {
+	var testCases = []struct {
+		name string
+		cmType     string
+		cmNamespace string
+		cmAllNamespaces bool
+		successful bool
+	}{
+		{"Test starts successfully with all fields and namespace", "stable.lostromos", "default", false, true},
+		{"Test starts successfully with all fields and all-namespaces", "stable.lostromos", "", true, true},
+		{"Test fails if missing namespace and all-namespaces false", "stable.lostromos", "", false, false},
+	}
+
+	for _, tt := range testCases {
+		viper.Reset()
+		viper.Set("cm.type", tt.cmType)
+		viper.Set("cm.namespace", tt.cmNamespace)
+		viper.Set("cm.allNamespaces", tt.cmAllNamespaces)
 
 		err := validateOptions()
 		if tt.successful {

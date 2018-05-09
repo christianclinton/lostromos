@@ -20,7 +20,7 @@ import (
 
 	"net/http"
 
-	homedir "github.com/mitchellh/go-homedir"
+	"github.com/mitchellh/go-homedir"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -35,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"github.com/wpengine/lostromos/cmshim"
 )
 
 var startCmd = &cobra.Command{
@@ -50,6 +51,9 @@ var startCmd = &cobra.Command{
 func init() {
 	LostromosCmd.AddCommand(startCmd)
 
+	startCmd.Flags().String("cm-type", "", "The CRD type to listen for, specified by the annotation: " + cmshim.CRD_ANNOTATION)
+	startCmd.Flags().String("cm-namespace", "", "(optional) the namespace of the ConfigMaps you want monitored (either cm-namespace, or cm-all-namespaces must be specified)")
+	startCmd.Flags().Bool("cm-all-namespaces", false, "(optional) listen for ConfigMaps from all namespaces (either cm-namespace, or cm-all-namespaces must be specified)")
 	startCmd.Flags().String("crd-name", "", "the plural name of the CRD you want monitored (ex: users)")
 	startCmd.Flags().String("crd-group", "", "the group of the CRD you want monitored (ex: stable.wpengine.io)")
 	startCmd.Flags().String("crd-version", "v1", "the version of the CRD you want monitored")
@@ -68,6 +72,9 @@ func init() {
 	startCmd.Flags().String("status-endpoint", "/status", "The URI for the status endpoint")
 	startCmd.Flags().String("templates", "", "absolute path to the directory with your template files")
 
+	viperBindFlag("cm.type", startCmd.Flags().Lookup("cm-type"))
+	viperBindFlag("cm.namespace", startCmd.Flags().Lookup("cm-namespace"))
+	viperBindFlag("cm.allNamespaces", startCmd.Flags().Lookup("cm-all-namespaces"))
 	viperBindFlag("crd.name", startCmd.Flags().Lookup("crd-name"))
 	viperBindFlag("crd.group", startCmd.Flags().Lookup("crd-group"))
 	viperBindFlag("crd.version", startCmd.Flags().Lookup("crd-version"))
@@ -108,6 +115,15 @@ func getKubeClient() (*restclient.Config, error) {
 	}
 
 	return clientcmd.BuildConfigFromFlags("", viper.GetString("k8s.config"))
+}
+
+func buildCMShim(cfg *restclient.Config) (*cmshim.CMShim, error) {
+	cmCfg := &cmshim.Config{
+		CRDType:     viper.GetString("cm.type"),
+	}
+	ctlr := getController()
+	l := &crLogger{logger: logger}
+	return cmshim.NewCMShim(cmCfg, cfg, ctlr, l)
 }
 
 func buildCRWatcher(cfg *restclient.Config) (*crwatcher.CRWatcher, error) {
@@ -163,9 +179,23 @@ func (c crLogger) Error(err error) {
 }
 
 func validateOptions() error {
-	if viper.GetString("crd.name") == "" {
-		return errors.New("crd-name is a required parameter")
+	if viper.GetString("crd.name") != "" && viper.GetString("cm.type") != "" {
+		return errors.New("crd-name and cm-type cannot both be set")
 	}
+	if viper.GetString("crd.name") == "" && viper.GetString("cm.type") == "" {
+		return errors.New("either crd-name or cm-type must be set")
+	}
+	if viper.GetString("crd.name") != "" {
+		return validateCRDOptions()
+	}
+	if viper.GetString("cm.type") != "" {
+		return validateCMOptions()
+	}
+
+	return nil
+}
+
+func validateCRDOptions() error {
 	if viper.GetString("crd.group") == "" {
 		return errors.New("crd-group is a required parameter")
 	}
@@ -173,6 +203,20 @@ func validateOptions() error {
 		return errors.New("crd-version is a required parameter")
 	}
 	return nil
+}
+
+func validateCMOptions() error {
+	if viper.GetString("cm.namespace") == "" && viper.GetBool("cm.allNamespaces") == false {
+		return errors.New("either cm-namespace or cm-all-namespaces must be set")
+	}
+	if viper.GetString("cm.namespace") != "" && viper.GetBool("cm.allNamespaces") == true {
+		return errors.New("cm-namespace and cm-all-namespaces cannot both be set")
+	}
+	return nil
+}
+
+type Watcher interface {
+	Watch(stopCh <-chan struct{}) error
 }
 
 func startServer() error {
@@ -186,9 +230,18 @@ func startServer() error {
 	if err != nil {
 		return err
 	}
-	crw, err := buildCRWatcher(cfg)
-	if err != nil {
-		return err
+
+	var crw Watcher
+	if viper.GetString("crd.name") != "" {
+		crw, err = buildCRWatcher(cfg)
+		if err != nil {
+			return err
+		}
+	} else if viper.GetString("cm.type") != "" {
+		crw, err = buildCMShim(cfg)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Set up Prometheus and Status endpoints.
