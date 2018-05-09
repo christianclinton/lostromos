@@ -18,31 +18,31 @@ import (
 	"errors"
 	"time"
 
+	"github.com/wpengine/lostromos/crwatcher"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/cache"
+	yaml2 "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/api/core/v1"
-	yaml2 "k8s.io/apimachinery/pkg/util/yaml"
-	"github.com/wpengine/lostromos/crwatcher"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 )
 
-const CRD_ANNOTATION="com.wpengine.lostromos.crd-type"
+const CRD_ANNOTATION = "com.wpengine.lostromos.crd-type"
 
 // Config provides config for a ConfigMap Shim
 type Config struct {
-	CRDType     string        // CRD type annotation to watch
-	Resync     time.Duration // How often existing ConfigMaps should be resynced (marked as updated)
+	CRDType string        // CRD type annotation to watch
+	Resync  time.Duration // How often existing ConfigMaps should be resynced (marked as updated)
 }
 
 // Watches ConfigMaps with a CRD payload.
 type CMShim struct {
-	Config     *Config
-	handler    cache.ResourceEventHandlerFuncs
-	controller cache.SharedIndexInformer
-	logger     ErrorLogger
+	Config             *Config
+	handler            cache.ResourceEventHandlerFuncs
+	controller         cache.SharedIndexInformer
+	logger             ErrorLogger
 	resourceController crwatcher.ResourceController
 }
 
@@ -54,8 +54,8 @@ type ErrorLogger interface {
 // NewCMShim builds a CMShim
 func NewCMShim(cfg *Config, kubeCfg *restclient.Config, rc crwatcher.ResourceController, l ErrorLogger) (*CMShim, error) {
 	cw := &CMShim{
-		Config: cfg,
-		logger: l,
+		Config:             cfg,
+		logger:             l,
 		resourceController: rc,
 	}
 
@@ -152,13 +152,13 @@ func (cw *CMShim) setupHandler(con crwatcher.ResourceController) {
 // If neither state passes filtering, ignore.
 //
 func (cw *CMShim) update(con crwatcher.ResourceController, oldR *v1.ConfigMap, newR *v1.ConfigMap) {
-	var(
+	var (
 		oldCRD *unstructured.Unstructured
 		newCRD *unstructured.Unstructured
-		err error
+		err    error
 	)
 	// Convert ConfigMap if annotated as a CRD.
-	if cw.passesFiltering(oldR){
+	if cw.passesFiltering(oldR) {
 		oldCRD, err = configMapToCRD(oldR)
 		if err != nil {
 			cw.logKubeError(err)
@@ -209,7 +209,7 @@ func (cw *CMShim) Watch(stopCh <-chan struct{}) error {
 	// Kick off wait for cache sync.
 	// This will return a few moments after the Informer Run() loop
 	// starts after this.
-	go func(){
+	go func() {
 		cache.WaitForCacheSync(stopCh, cw.controller.HasSynced)
 		cw.resourceController.NotifySynced()
 	}()

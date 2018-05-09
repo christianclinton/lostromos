@@ -4,20 +4,19 @@ import (
 	"fmt"
 	"testing"
 
-
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/wpengine/lostromos/printctlr"
-	restclient "k8s.io/client-go/rest"
-	"github.com/golang/mock/gomock"
 	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	restclient "k8s.io/client-go/rest"
 )
 
 var (
 	testConfigMap = &v1.ConfigMap{
 		ObjectMeta: v12.ObjectMeta{
-			SelfLink: "/api/stable.nicolerenee.io/v1/namespaces/mock/characters/dory",
+			SelfLink:  "/api/stable.nicolerenee.io/v1/namespaces/mock/characters/dory",
 			Namespace: "foo",
 			Annotations: map[string]string{
 				"com.wpengine.lostromos.crd-type": "stable.nicolerenee.io/v1/Characters",
@@ -25,7 +24,7 @@ var (
 		},
 		TypeMeta: v12.TypeMeta{
 			APIVersion: "stable.nicolerenee.io/v1",
-			Kind: "Character",
+			Kind:       "Character",
 		},
 		Data: map[string]string{
 			"crd": `---
@@ -41,7 +40,7 @@ spec:
 	}
 	testConfigMapUpdated = &v1.ConfigMap{
 		ObjectMeta: v12.ObjectMeta{
-			SelfLink: "/api/stable.nicolerenee.io/v1/namespaces/mock/characters/dory",
+			SelfLink:  "/api/stable.nicolerenee.io/v1/namespaces/mock/characters/dory",
 			Namespace: "foo",
 			Annotations: map[string]string{
 				"com.wpengine.lostromos.crd-type": "stable.nicolerenee.io/v1/Characters",
@@ -49,8 +48,7 @@ spec:
 		},
 		TypeMeta: v12.TypeMeta{
 			APIVersion: "stable.nicolerenee.io/v1",
-			Kind: "Character",
-
+			Kind:       "Character",
 		},
 		Data: map[string]string{
 			"crd": `---
@@ -67,11 +65,11 @@ spec:
 	testResource = &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "stable.nicolerenee.io/v1",
-			"kind": "Character",
+			"kind":       "Character",
 			"metadata": map[string]interface{}{
-				"name": "dory",
+				"name":      "dory",
 				"namespace": "foo",
-				"selfLink": "/api/stable.nicolerenee.io/v1/namespaces/mock/characters/dory",
+				"selfLink":  "/api/stable.nicolerenee.io/v1/namespaces/mock/characters/dory",
 			},
 			"spec": map[string]interface{}{
 				"name": "Dory",
@@ -83,11 +81,11 @@ spec:
 	testResourceUpdated = &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "stable.nicolerenee.io/v1",
-			"kind": "Character",
+			"kind":       "Character",
 			"metadata": map[string]interface{}{
-				"name": "dory",
+				"name":      "dory",
 				"namespace": "foo",
-				"selfLink": "/api/stable.nicolerenee.io/v1/namespaces/mock/characters/dory",
+				"selfLink":  "/api/stable.nicolerenee.io/v1/namespaces/mock/characters/dory",
 			},
 			"spec": map[string]interface{}{
 				"name": "Dory2",
