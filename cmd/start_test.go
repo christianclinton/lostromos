@@ -107,7 +107,7 @@ func TestValidateOptions(t *testing.T) {
 	var testCases = []struct {
 		name       string
 		crName     string
-		cmType    string
+		cmType     string
 		successful bool
 	}{
 		{"Test fails with both cr-name and cm-type", "test", "test", false},
@@ -162,11 +162,11 @@ func TestValidateCRDOptions(t *testing.T) {
 
 func TestValidateCMOptions(t *testing.T) {
 	var testCases = []struct {
-		name string
-		cmType     string
-		cmNamespace string
+		name            string
+		cmType          string
+		cmNamespace     string
 		cmAllNamespaces bool
-		successful bool
+		successful      bool
 	}{
 		{"Test starts successfully with all fields and namespace", "stable.lostromos", "default", false, true},
 		{"Test starts successfully with all fields and all-namespaces", "stable.lostromos", "", true, true},

@@ -24,6 +24,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/wpengine/lostromos/cmshim"
 	"github.com/wpengine/lostromos/crwatcher"
 	"github.com/wpengine/lostromos/helmctlr"
 	"github.com/wpengine/lostromos/printctlr"
@@ -35,7 +36,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"github.com/wpengine/lostromos/cmshim"
 )
 
 var startCmd = &cobra.Command{
@@ -51,7 +51,7 @@ var startCmd = &cobra.Command{
 func init() {
 	LostromosCmd.AddCommand(startCmd)
 
-	startCmd.Flags().String("cm-type", "", "The CRD type to listen for, specified by the annotation: " + cmshim.CRD_ANNOTATION)
+	startCmd.Flags().String("cm-type", "", "The CRD type to listen for, specified by the annotation: "+cmshim.CRD_ANNOTATION)
 	startCmd.Flags().String("cm-namespace", "", "(optional) the namespace of the ConfigMaps you want monitored (either cm-namespace, or cm-all-namespaces must be specified)")
 	startCmd.Flags().Bool("cm-all-namespaces", false, "(optional) listen for ConfigMaps from all namespaces (either cm-namespace, or cm-all-namespaces must be specified)")
 	startCmd.Flags().String("crd-name", "", "the plural name of the CRD you want monitored (ex: users)")
@@ -119,7 +119,7 @@ func getKubeClient() (*restclient.Config, error) {
 
 func buildCMShim(cfg *restclient.Config) (*cmshim.CMShim, error) {
 	cmCfg := &cmshim.Config{
-		CRDType:     viper.GetString("cm.type"),
+		CRDType: viper.GetString("cm.type"),
 	}
 	ctlr := getController()
 	l := &crLogger{logger: logger}
