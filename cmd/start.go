@@ -120,6 +120,8 @@ func getKubeClient() (*restclient.Config, error) {
 func buildCMShim(cfg *restclient.Config) (*cmshim.CMShim, error) {
 	cmCfg := &cmshim.Config{
 		CRDType: viper.GetString("cm.type"),
+		Namespace: viper.GetString("cm.namespace"),
+		AllNamespaces: viper.GetBool("cm.allNamespaces"),
 	}
 	ctlr := getController()
 	l := &crLogger{logger: logger}

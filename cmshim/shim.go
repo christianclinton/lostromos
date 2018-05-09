@@ -35,6 +35,8 @@ const CRD_ANNOTATION = "com.wpengine.lostromos.crd-type"
 type Config struct {
 	CRDType string        // CRD type annotation to watch
 	Resync  time.Duration // How often existing ConfigMaps should be resynced (marked as updated)
+	Namespace string // Namespace to watch ConfigMaps
+	AllNamespaces bool // Watch ConfigMaps from all namespaces
 }
 
 // Watches ConfigMaps with a CRD payload.

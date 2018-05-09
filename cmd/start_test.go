@@ -73,6 +73,23 @@ func TestBuildCRWatcherReturnsProperlyConfiguredWatcher(t *testing.T) {
 	assert.Equal(t, crdFilter, crw.Config.Filter)
 }
 
+func TestBuildCRWatcherReturnsProperlyConfiguredCMShim(t *testing.T) {
+	cmType := "testCRD"
+	cmNamespace := "default"
+	cmAllNamespaces := false
+	viper.Set("cm.type", cmType)
+	viper.Set("cm.namespace", cmNamespace)
+	viper.Set("cm.allNamespaces", cmAllNamespaces)
+
+	kubeCfg := &restclient.Config{}
+	crw, err := buildCMShim(kubeCfg)
+	assert.NotNil(t, crw)
+	assert.Nil(t, err)
+	assert.Equal(t, cmType, crw.Config.CRDType)
+	assert.Equal(t, cmNamespace, crw.Config.Namespace)
+	assert.Equal(t, cmAllNamespaces, crw.Config.AllNamespaces)
+}
+
 func TestGetControllerReturnsHelmController(t *testing.T) {
 	chart := "/path/chart"
 	ns := "lostromos"
