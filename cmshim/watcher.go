@@ -25,14 +25,16 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/api/core/v1"
-	"fmt"
 	yaml2 "k8s.io/apimachinery/pkg/util/yaml"
+	"github.com/wpengine/lostromos/crwatcher"
 )
 
-// Config provides config for a CRD Watcher
+const CRD_ANNOTATION="com.wpengine.lostromos.crd-type"
+
+// Config provides config for a ConfigMap Shim
 type Config struct {
-	Filter     string        // Optional disregard resources that don't have an annotation key matching this filter
-	Resync     time.Duration // How often existing CRs should be resynced (marked as updated)
+	CRDType     string        // CRD type annotation to watch
+	Resync     time.Duration // How often existing ConfigMaps should be resynced (marked as updated)
 }
 
 // Watches ConfigMaps with a CRD payload.
@@ -41,29 +43,7 @@ type CMShim struct {
 	handler    cache.ResourceEventHandlerFuncs
 	controller cache.SharedIndexInformer
 	logger     ErrorLogger
-	resourceController ResourceController
-}
-
-// ResourceController exposes the functionality of a controller that
-// will handle callbacks for events that happen to the Custom Resource being
-// monitored. The events are informational only, so you can't return an
-// error.
-//  * ResourceAdded is called when an object is added.
-//  * ResourceUpdated is called when an object is modified. Note that
-//      oldResource is the last known state of the object-- it is possible that
-//      several changes were combined together, so you can't use this to see
-//      every single change. ResourceUpdated is also called when a re-list
-//      happens, and it will get called even if nothing changed. This is useful
-//      for periodically evaluating or syncing something.
-//  * ResourceDeleted will get the final state of the item if it is known,
-//      otherwise it will get an object of type DeletedFinalStateUnknown. This
-//      can happen if the watch is closed and misses the delete event and we
-//      don't notice the deletion until the subsequent re-list.
-type ResourceController interface {
-	ResourceAdded(resource *unstructured.Unstructured)
-	ResourceUpdated(oldResource, newResource *unstructured.Unstructured)
-	ResourceDeleted(resource *unstructured.Unstructured)
-	NotifySynced()
+	resourceController crwatcher.ResourceController
 }
 
 // ErrorLogger will receive any error messages from the kubernetes client
@@ -71,8 +51,8 @@ type ErrorLogger interface {
 	Error(err error)
 }
 
-// NewCRWatcher builds a CRWatcher
-func NewCMShim(cfg *Config, kubeCfg *restclient.Config, rc ResourceController, l ErrorLogger) (*CMShim, error) {
+// NewCMShim builds a CMShim
+func NewCMShim(cfg *Config, kubeCfg *restclient.Config, rc crwatcher.ResourceController, l ErrorLogger) (*CMShim, error) {
 	cw := &CMShim{
 		Config: cfg,
 		logger: l,
@@ -88,8 +68,10 @@ func NewCMShim(cfg *Config, kubeCfg *restclient.Config, rc ResourceController, l
 	cw.setupRuntimeLogging()
 	return cw, nil
 }
+
 // Takes a ConfigMap with a `crd` Data field containing a CRD YAML payload
-func ConfigMapToCRD(cm *v1.ConfigMap) (*unstructured.Unstructured, error) {
+// and returns an Unstructured object.
+func configMapToCRD(cm *v1.ConfigMap) (*unstructured.Unstructured, error) {
 	crdUnstructured := &unstructured.Unstructured{}
 
 	if _, ok := cm.Data["crd"]; !ok {
@@ -107,6 +89,10 @@ func ConfigMapToCRD(cm *v1.ConfigMap) (*unstructured.Unstructured, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Copy ID fields from ConfigMap to fake CRD
+	crdUnstructured.SetSelfLink(cm.SelfLink)
+	crdUnstructured.SetNamespace(cm.Namespace)
 	return crdUnstructured, nil
 }
 
@@ -122,45 +108,37 @@ func (cw *CMShim) logKubeError(err error) {
 	cw.logger.Error(err)
 }
 
-func (cw *CMShim) setupHandler(con ResourceController) {
+func (cw *CMShim) setupHandler(con crwatcher.ResourceController) {
 	cw.handler = cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			r := obj.(*v1.ConfigMap)
-			crd, err := ConfigMapToCRD(r)
+			if !cw.passesFiltering(r) {
+				return
+			}
+			crd, err := configMapToCRD(r)
 			if err != nil {
 				cw.logKubeError(err)
 				return
 			}
-			fmt.Println(crd)
-			if cw.passesFiltering(crd) {
-				con.ResourceAdded(crd)
-			}
+			con.ResourceAdded(crd)
 		},
 		DeleteFunc: func(obj interface{}) {
 			r := obj.(*v1.ConfigMap)
-			crd, err := ConfigMapToCRD(r)
+			if !cw.passesFiltering(r) {
+				return
+			}
+			crd, err := configMapToCRD(r)
 			if err != nil {
 				cw.logKubeError(err)
 				return
 			}
-			if cw.passesFiltering(crd) {
-				con.ResourceDeleted(crd)
-			}
+			con.ResourceDeleted(crd)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldR := oldObj.(*v1.ConfigMap)
 			newR := newObj.(*v1.ConfigMap)
-			oldCRD, err := ConfigMapToCRD(oldR)
-			if err != nil {
-				cw.logKubeError(err)
-				return
-			}
-			newCRD, err := ConfigMapToCRD(newR)
-			if err != nil {
-				cw.logKubeError(err)
-				return
-			}
-			cw.update(con, oldCRD, newCRD)
+
+			cw.update(con, oldR, newR)
 		},
 	}
 }
@@ -173,39 +151,59 @@ func (cw *CMShim) setupHandler(con ResourceController) {
 // If the old state passes filtering and the new state does not, send a delete notification to the controller.
 // If neither state passes filtering, ignore.
 //
-func (cw *CMShim) update(con ResourceController, oldR *unstructured.Unstructured, newR *unstructured.Unstructured) {
-	if cw.passesFiltering(newR) {
-		if cw.passesFiltering(oldR) {
-			con.ResourceUpdated(oldR, newR)
+func (cw *CMShim) update(con crwatcher.ResourceController, oldR *v1.ConfigMap, newR *v1.ConfigMap) {
+	var(
+		oldCRD *unstructured.Unstructured
+		newCRD *unstructured.Unstructured
+		err error
+	)
+	// Convert ConfigMap if annotated as a CRD.
+	if cw.passesFiltering(oldR){
+		oldCRD, err = configMapToCRD(oldR)
+		if err != nil {
+			cw.logKubeError(err)
 			return
 		}
-		con.ResourceAdded(newR)
+	}
+	if cw.passesFiltering(newR) {
+		newCRD, err = configMapToCRD(newR)
+		if err != nil {
+			cw.logKubeError(err)
+			return
+		}
+	}
+	// Perform Add/Update/Delete based on annotation combination
+	if cw.passesFiltering(newR) {
+		if cw.passesFiltering(oldR) {
+			con.ResourceUpdated(oldCRD, newCRD)
+		} else {
+			con.ResourceAdded(newCRD)
+		}
 	} else if cw.passesFiltering(oldR) {
-		con.ResourceDeleted(oldR)
+		con.ResourceDeleted(oldCRD)
 	}
 }
 
-// passesFiltering checks to see if we are using an opt in filter (if not, then return true), and if so returns whether we
-// have an annotation matching the given filter.
-func (cw *CMShim) passesFiltering(r *unstructured.Unstructured) bool {
-	if cw.Config.Filter == "" {
-		return true
-	}
-
+// passesFiltering checks if the ConfigMap is annotated with a CRD type.
+// This indicates the ConfigMap has a CRD payload to extract.
+func (cw *CMShim) passesFiltering(r *v1.ConfigMap) bool {
 	annotations := r.GetAnnotations()
 	if annotations == nil {
 		return false
 	}
 
-	_, ok := annotations[cw.Config.Filter]
-	return ok
+	if _, ok := annotations[CRD_ANNOTATION]; !ok {
+		return false
+	}
+
+	return annotations[CRD_ANNOTATION] == cw.Config.CRDType
 }
 
 // Watch will be called to begin watching the configured custom resource. All
 // events will be passed back to the ResourceController
 func (cw *CMShim) Watch(stopCh <-chan struct{}) error {
 	if cw.controller == nil {
-		return errors.New("the CRWatcher has not been initialized")
+		return errors.New("the CMShim has not been initialized")
 	}
 
 	// Kick off wait for cache sync.
